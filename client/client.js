@@ -138,11 +138,54 @@ function addListener() {
         // delay
         candidate['value'] = (currentTime - publishTime).toString();
         candidates.push(candidate);
-        console.log("candidates: ", candidates);
+        // console.log("candidates: ", candidates);
 
+        const maxWaitingTime = 500;
+        async function waitFor() {
+          let promise = new Promise((res, rej) => {
+            setTimeout(() =>  res("timeout, start to choose one!"), maxWaitingTime)
+          });
+    
+          // wait until the promise returns us a value
+          let result = await promise;
+
+          console.log(result);
+        }
+
+        let msg = {}
+         
+        // waitFor()
+        //   .then(_ =>{
+        //     console.log("candidates: ", candidates);
+        //     /** 
+        //     let access = new AccessLedger();
+        //     access.chooseExecutor(candidates)
+        //       .then(executor => {
+        //         console.log("decide executor: ", executor);
+        //         currentTime = d.getTime();
+        //         msg = {
+        //           type : "decide",
+        //           taskId: taskId,
+        //           publisherId: publisherId,
+        //           executorId: executor,
+        //           deadline : deadline,
+        //           baseRewards : baseRewards,
+        //           // TaskStartTime: currentTime.toString(),
+        //           workload: "1000"
+        //         };
+        //         // reset candidates
+        //         candidates = [];
+        //         // decideExecutor(msg);
+        //       })
+        //       .then(() => {
+        //         decideExecutor(msg);
+        //       });
+        //     */
+        //   });
+          
         if (candidates.length >= 2) {
           // choose executor, call function from accessLedger
-          let msg = {}
+          console.log("candidates: ", candidates);
           let access = new AccessLedger();
           access.chooseExecutor(candidates)
             .then(executor => {
@@ -166,6 +209,7 @@ function addListener() {
               decideExecutor(msg);
             });
         }
+         
       /** candidates get decision, 
        *  executor start doing task and return results, 
        *  others save task start time*/   
