@@ -1,6 +1,9 @@
 const PubNub = require("pubnub");
 const prompt = require('prompt-sync')();
 const AccessLedger = require('./accessLedger');
+const { exec } = require('child_process');
+const fs = require('fs');
+const { uuid } = require('uuidv4');
 
 
 ID = ""
@@ -12,6 +15,12 @@ const pubnub = new PubNub({
   uuid: "myUniqueUUID",
 });
 
+function getRandomInt(min, max) {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor(Math.random() * (max - min) + min); //The maximum is exclusive and the minimum is inclusive
+}
+
 async function publishTask(publisherId, deadline, baseRewards) {
   console.log("publishing task ...");
   let d = new Date();
@@ -20,6 +29,7 @@ async function publishTask(publisherId, deadline, baseRewards) {
     channel: "mychannel",
     message: {
       type: "pub",
+      taskId: uuid(),
       publisherId: publisherId,
       deadline: deadline,
       baseRewards: baseRewards,
@@ -70,6 +80,18 @@ async function decideExecutor(msg) {
   }
 }
 
+async function returnDecision(msg) {
+  try {
+    console.log(`return to decision: ${JSON.stringify(msg)}`);
+    await pubnub.publish({
+      channel: "mychannel",
+      message: msg
+    });
+  } catch (error) {
+    console.error(`Failed to send response: ${error}`);
+  }
+}
+
 function addListener() {
   pubnub.addListener({
     status: function (statusEvent) {
@@ -82,6 +104,7 @@ function addListener() {
       /** candidates get tasks publish, return a response */
       if (ID != messageEvent.message.publisherId && messageEvent.message.type == "pub") {
         console.log("other servers receive publish")
+        let taskId = messageEvent.message.taskId;
         let publisherId = messageEvent.message.publisherId;
         let deadline = messageEvent.message.deadline;
         let baseRewards = messageEvent.message.baseRewards;
@@ -89,6 +112,7 @@ function addListener() {
         
         let msg = {
           type : "res",
+          taskId: taskId,
           publisherId: publisherId,
           candidate: ID,
           des : publisherId,
@@ -102,6 +126,7 @@ function addListener() {
       } else if (messageEvent.message.des == ID && messageEvent.message.type == "res") {
         console.log(messageEvent.message);
         let d = new Date();
+        let taskId = messageEvent.message.taskId;
         let currentTime = d.getTime();
         let publisherId = messageEvent.message.publisherId;
         let deadline = messageEvent.message.deadline;
@@ -110,6 +135,7 @@ function addListener() {
         
         let candidate = {}
         candidate['id'] = messageEvent.message.candidate;
+        // delay
         candidate['value'] = (currentTime - publishTime).toString();
         candidates.push(candidate);
         console.log("candidates: ", candidates);
@@ -124,12 +150,13 @@ function addListener() {
               currentTime = d.getTime();
               msg = {
                 type : "decide",
+                taskId: taskId,
                 publisherId: publisherId,
                 executorId: executor,
                 deadline : deadline,
                 baseRewards : baseRewards,
-                TaskStartTime: currentTime.toString(),
-                workload: "workload"
+                // TaskStartTime: currentTime.toString(),
+                workload: "1000"
               };
               // reset candidates
               candidates = [];
@@ -139,20 +166,81 @@ function addListener() {
               decideExecutor(msg);
             });
         }
+      /** candidates get decision, 
+       *  executor start doing task and return results, 
+       *  others save task start time*/   
       } else if (messageEvent.message.type == "decide" && messageEvent.message.publisherId != ID) {
         console.log("receive decision: ", messageEvent.message);
+        let workload =  parseInt(messageEvent.message.workload);
+
+        let taskId = messageEvent.message.taskId;
+        let publisherId = messageEvent.message.publisherId;
+        let executorId = messageEvent.message.executorId
+        let deadline = messageEvent.message.deadline;
+        let baseRewards = messageEvent.message.baseRewards;
+
         if (messageEvent.message.executorId == ID) {
           // do task
-          setTimeout(function (params) {
+          // exec('~/development/ycsb-0.17.0/bin/ycsb.sh run basic -P ~/development/ycsb-0.17.0/workloads/workloada -p operationcount=1000', (err, stdout, stderr) => {
+          //   if (err) {
+          //     // node couldn't execute the command
+          //     return;
+          //   }
+          //   console.log(stdout);
+          //   console.log(stderr);
+          // });
+          setTimeout(() => {
             // return results by publish
+            let msg = {
+              type: "result",
+              taskId: taskId,
+              publisherId: publisherId,
+              executorId: executorId,
+              taskStartTime: d.getTime().toString(),
+              deadline: deadline,
+              baseRewards: baseRewards
+            };
 
-          }, 400);
+            returnDecision(msg);
+          }, getRandomInt(400, 600));
           //return
         } else {
+          const content = taskId + ',' + executorId + ',' + d.getTime();
           // log tart time for validation later
-
+          fs.appendFileSync(__dirname+'/tasks_time.log', '\n'+content, err => {
+            if (err) {
+              console.error(err);
+              return;
+            }
+          })
         }
-
+      /** publisher get results and create tx, 
+       *  others, except executor, save end time
+       * */  
+      } else if (messageEvent.message.type == "result" && messageEvent.message.executorId != ID){
+        let taskId = messageEvent.message.taskId;
+        let startTime = messageEvent.message.taskStartTime;
+        let publisherId = messageEvent.message.publisherId;
+        let executorId = messageEvent.message.executorId
+        let deadline = messageEvent.message.deadline;
+        let baseRewards = messageEvent.message.baseRewards;
+        let endTime = d.getTime();
+        
+        // publisher creates transaction
+        if (messageEvent.message.publisherId == ID) {
+          let access = new AccessLedger();
+          access.createTask(taskId, executorId, publisherId, startTime, endTime, deadline, baseRewards).then(() => {
+            console.log('task created successfully');
+          })
+        } else {
+          const content =  ',' + endTime;
+          fs.appendFileSync(__dirname+'/tasks_time.log', content, err => {
+            if (err) {
+              console.error(err);
+              return;
+            }
+          })
+        }
       }
       // console.log("continuing");
     },

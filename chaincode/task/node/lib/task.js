@@ -39,7 +39,7 @@ class Task extends Contract {
         console.info('============= END : Initialize Ledger ===========');
     }
 
-    async createTask(ctx, executorId, publisherId, startTime, endTime, deadline, baseRewards) {
+    async createTask(ctx, taskId, executorId, publisherId, startTime, endTime, deadline, baseRewards) {
         console.info('============= START : Create Task ===========');
         const P = 0.8;
         startTime = parseFloat(startTime)
@@ -56,6 +56,7 @@ class Task extends Contract {
         }
 
         const task = {
+            "taskId" : taskId,
             "executorId" : executorId,
             "publisherId" : publisherId,
             "startTime" : String(startTime),
