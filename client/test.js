@@ -41,7 +41,7 @@ class Test {
 
 
 let t = new Test();
-t.testCompRep()
+t.testQueryByExecutor()
 
 
 // access.getAllTasks();

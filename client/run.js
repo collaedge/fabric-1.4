@@ -1,4 +1,4 @@
 const {publishTask} = require('./client')
 
 
-publishTask("server1", "400", "30");
+publishTask("server3", "800", "20");

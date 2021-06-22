@@ -43,4 +43,4 @@ Commons Attribution 4.0 International License (CC-BY-4.0), available at http://c
 
 ./byfn.sh generate
 
-/byfn.sh up -l node -o etcdraft
+./byfn.sh up -l node -o etcdraft -a -s couchdb

@@ -20,7 +20,7 @@ class Task extends Contract {
         for (let i = 1; i <= numOfServer; i++) {
             let receiver = 'server' + i
             let task = {
-                    // taskId: uuid(),
+                    taskId: uuid(),
                     executorId: receiver,
                     publisherId: '',
                     startTime: '',

@@ -222,7 +222,7 @@ function addListener() {
         let executorId = messageEvent.message.executorId
         let deadline = messageEvent.message.deadline;
         let baseRewards = messageEvent.message.baseRewards;
-
+        
         if (messageEvent.message.executorId == ID) {
           // do task
           // exec('~/development/ycsb-0.17.0/bin/ycsb.sh run basic -P ~/development/ycsb-0.17.0/workloads/workloada -p operationcount=1000', (err, stdout, stderr) => {
@@ -240,7 +240,7 @@ function addListener() {
               taskId: taskId,
               publisherId: publisherId,
               executorId: executorId,
-              taskStartTime: d.getTime().toString(),
+              taskStartTime: new Date().getTime().toString(),
               deadline: deadline,
               baseRewards: baseRewards
             };
@@ -249,9 +249,10 @@ function addListener() {
           }, getRandomInt(400, 600));
           //return
         } else {
-          const content = taskId + ',' + executorId + ',' + d.getTime();
+          const content = taskId + ',' + executorId + ',' + new Date().getTime();
+          console.log("start to write log: ", content);
           // log tart time for validation later
-          fs.appendFileSync(__dirname+'/tasks_time.log', '\n'+content, err => {
+          fs.appendFileSync(__dirname + '/' + ID + '_tasks_time.log', '\n'+content, err => {
             if (err) {
               console.error(err);
               return;
@@ -262,23 +263,24 @@ function addListener() {
        *  others, except executor, save end time
        * */  
       } else if (messageEvent.message.type == "result" && messageEvent.message.executorId != ID){
+        console.log("get results: ", messageEvent.message);
         let taskId = messageEvent.message.taskId;
         let startTime = messageEvent.message.taskStartTime;
         let publisherId = messageEvent.message.publisherId;
         let executorId = messageEvent.message.executorId
         let deadline = messageEvent.message.deadline;
         let baseRewards = messageEvent.message.baseRewards;
-        let endTime = d.getTime();
         
         // publisher creates transaction
-        if (messageEvent.message.publisherId == ID) {
+        if (publisherId == ID) {
+          console.log("publisher start creating tx....");
+          let endTime = new Date().getTime().toString();
           let access = new AccessLedger();
-          access.createTask(taskId, executorId, publisherId, startTime, endTime, deadline, baseRewards).then(() => {
-            console.log('task created successfully');
-          })
+          access.createTask(taskId, executorId, publisherId, startTime, endTime, deadline, baseRewards);
         } else {
-          const content =  ',' + endTime;
-          fs.appendFileSync(__dirname+'/tasks_time.log', content, err => {
+          const content =  ',' + new Date().getTime().toString();
+          // console.log("content: ", content);
+          fs.appendFileSync(__dirname + '/' + ID + '_tasks_time.log', content, err => {
             if (err) {
               console.error(err);
               return;

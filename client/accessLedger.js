@@ -87,11 +87,11 @@ class AccessLedger {
         }
     }
 
-    async createTask(executorId, publisherId, startTime, endTime, deadline, baseRewards) {
+    async createTask(taskId, executorId, publisherId, startTime, endTime, deadline, baseRewards) {
         try {
             await this.initContract();
             // Evaluate the specified transaction.
-            await this.contract.submitTransaction('createTask', executorId, publisherId, startTime, endTime, deadline, baseRewards);
+            await this.contract.submitTransaction('createTask', taskId, executorId, publisherId, startTime, endTime, deadline, baseRewards);
             console.log(`Transaction has been submitted`);
         } catch (error) {
             console.error(`Failed to evaluate transaction: ${error}`);
@@ -107,10 +107,20 @@ class AccessLedger {
         let delays = []
         // return reps array
         let reps = await this.computeReputation(candidatesIds);
-        let normalizedRep = this.normalization('rep', reps);
+        let normalizedRep = []
+        if (reps.length == 0) {
+            candidatesIds.forEach(id => {
+                let rep = {"id": id, "value": 0}
+                normalizedRep.push(rep);
+            })
+        } else {
+            normalizedRep = this.normalization('rep', reps);
+        }
+        // console.log("reps: ", reps);
+        // normalizedRep = this.normalization('rep', reps);
         // console.log("normalizedRep: ", normalizedRep);
         let normalizedDelay = this.normalization('delay', candidates);
-        // console.log("normalizedDelay: ", normalizedDelay);
+        console.log("normalizedDelay: ", normalizedDelay);
         // console.log(JSON.stringify(reps));
 
         let executor = this.chooseOne(candidatesIds, normalizedRep, normalizedDelay);
@@ -131,7 +141,7 @@ class AccessLedger {
             let delay = normalizedDelay.filter(nDelay => nDelay['id'] == id);
             let score = {
                 id : id,
-                value : parseFloat(rep[0]['value'])*repWeight + parseFloat(delay[0]['value'])*delayWeight
+                value : parseFloat(rep[0] ? rep[0]['value'] : 0)*repWeight + parseFloat(delay[0] ? delay[0]['value'] : 0)*delayWeight
             }
             // console.log(score);
             scores.push(score);
